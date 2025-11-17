@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Barcode Calculator Scale</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+
+    .calculator {
+      width: 100%;
+      max-width: 400px;
+      background: #2c3e50;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    #display {
+      background: #ecf0f1;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+      text-align: center;
+      font-family: monospace;
+      font-size: 1em;
+    }
+
+    .display-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .display-item {
+      text-align: center;
+      flex: 1;
+    }
+
+    .display-label {
+      font-size: 0.8em;
+      color: #7f8c8d;
+    }
+
+    .display-value {
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .function-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .small-function-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    button {
+      padding: 15px 10px;
+      border: none;
+      background: #3498db;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      min-height: 50px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active {
+      background: #2980b9;
+      transform: scale(0.98);
+    }
+
+    .function-btn {
+      background: #e67e22;
+    }
+
+    .function-btn:active {
+      background: #d35400;
+    }
+
+    #barcode {
+      width: 100%;
+      margin-top: 20px;
+      padding: 10px;
+      background: white;
+      border-radius: 5px;
+    }
+
+    #status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+      color: white;
+      font-size: 14px;
+    }
+
+    .status-connected {
+      background-color: #27ae60;
+    }
+
+    .status-disconnected {
+      background-color: #c0392b;
+    }
+
+    #notification {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px;
+      border-radius: 5px;
+      display: none;
+      color: white;
+      background-color: #2c3e50;
+      max-width: 90%;
+      text-align: center;
+      z-index: 1000;
+    }
+
+    .print-btn {
+      grid-column: span 3;
+      background: #e74c3c !important;
+    }
+
+    .print-btn:active {
+      background: #c0392b !important;
+    }
+
+    .backspace-btn {
+      background: #c0392b;
+    }
+
+    .backspace-btn:active {
+      background: #a93226;
+    }
+
+    .active-mode {
+      background: #27ae60 !important;
+    }
+
+    .small-btn {
+      padding: 10px 5px;
+      font-size: 14px;
+      min-height: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="calculator">
+    <div id="display">
+      <div class="display-row">
+        <div class="display-item">
+          <div class="display-label">FLEX</div>
+          <div class="display-value" id="current-flex">00</div>
+        </div>
+        <div class="display-item">
+          <div class="display-label">KATEGORI</div>
+          <div class="display-value" id="current-category">000</div>
+        </div>
+      </div>
+      <div class="display-row">
+        <div class="display-item">
+          <div class="display-label">PRODUK</div>
+          <div class="display-value" id="current-product">000</div>
+        </div>
+        <div class="display-item">
+          <div class="display-label">BERAT</div>
+          <div class="display-value" id="current-weight">00000</div>
+        </div>
+      </div>
+      <div class="display-row">
+        <div class="display-item" style="flex: 2;">
+          <div class="display-label">BARCODE</div>
+          <div class="display-value" id="current-barcode">0000000000000</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="small-function-row">
+      <button id="flex-btn" class="function-btn small-btn active-mode" onclick="setInputMode('flex')">FLEX</button>
+      <button id="category-btn" class="function-btn small-btn" onclick="setInputMode('category')">KATEGORI</button>
+    </div>
+    
+    <div class="function-row">
+      <button id="product-btn" class="function-btn" onclick="setInputMode('product')">PRODUK</button>
+      <button id="weight-btn" class="function-btn" onclick="setInputMode('weight')">BERAT</button>
+      <button class="backspace-btn" onclick="backspace()">⌫</button>
+    </div>
+    
+    <div class="function-row">
+      <button class="function-btn" onclick="clearInput()">CLEAR</button>
+      <button class="function-btn" onclick="generate()">ENTER</button>
+      <button class="function-btn" onclick="connectToPrinter()">CONNECT</button>
+    </div>
+    
+    <div class="buttons">
+      <button onclick="appendNumber('7')">7</button>
+      <button onclick="appendNumber('8')">8</button>
+      <button onclick="appendNumber('9')">9</button>
+      
+      <button onclick="appendNumber('4')">4</button>
+      <button onclick="appendNumber('5')">5</button>
+      <button onclick="appendNumber('6')">6</button>
+      
+      <button onclick="appendNumber('1')">1</button>
+      <button onclick="appendNumber('2')">2</button>
+      <button onclick="appendNumber('3')">3</button>
+      
+      <button onclick="appendNumber('0')">0</button>
+      <button onclick="appendNumber('00')">00</button>
+      
+      <button class="print-btn function-btn" onclick="printBarcode()">PRINT</button>
+    </div>
+    
+    <svg id="barcode"></svg>
+    <div id="status" class="status-disconnected">Printer: Tidak Terkoneksi</div>
+  </div>
+  <div id="notification"></div>
+
+  <script>
+    // Global variables
+    let currentInputMode = 'flex';
+    let flexValue = '';
+    let categoryValue = '';
+    let productValue = '';
+    let weightValue = '';
+    let port = null;
+    let writer = null;
+    
+    // Input handling functions
+    function setInputMode(mode) {
+      currentInputMode = mode;
+      // Update visual indicator
+      document.getElementById('flex-btn').classList.toggle('active-mode', mode === 'flex');
+      document.getElementById('category-btn').classList.toggle('active-mode', mode === 'category');
+      document.getElementById('product-btn').classList.toggle('active-mode', mode === 'product');
+      document.getElementById('weight-btn').classList.toggle('active-mode', mode === 'weight');
+    }
+    
+    function appendNumber(num) {
+      if (currentInputMode === 'flex') {
+        if (num === '00') {
+          if (flexValue.length === 0) {
+            flexValue = '00';
+          }
+        } else if (flexValue.length < 2) {
+          flexValue += num;
+        }
+      } else if (currentInputMode === 'category') {
+        if (num === '00') {
+          if (categoryValue.length <= 1) {
+            categoryValue += '00';
+          }
+        } else if (categoryValue.length < 3) {
+          categoryValue += num;
+        }
+      } else if (currentInputMode === 'product') {
+        if (num === '00') {
+          if (productValue.length <= 1) {
+            productValue += '00';
+          }
+        } else if (productValue.length < 3) {
+          productValue += num;
+        }
+      } else if (currentInputMode === 'weight') {
+        if (num === '00') {
+          if (weightValue.length <= 3) {
+            weightValue += '00';
+          }
+        } else if (weightValue.length < 5) {
+          weightValue += num;
+        }
+      }
+      updateDisplay();
+    }
+    
+    function backspace() {
+      if (currentInputMode === 'flex' && flexValue.length > 0) {
+        flexValue = flexValue.slice(0, -1);
+      } else if (currentInputMode === 'category' && categoryValue.length > 0) {
+        categoryValue = categoryValue.slice(0, -1);
+      } else if (currentInputMode === 'product' && productValue.length > 0) {
+        productValue = productValue.slice(0, -1);
+      } else if (currentInputMode === 'weight' && weightValue.length > 0) {
+        weightValue = weightValue.slice(0, -1);
+      }
+      updateDisplay();
+    }
+    
+    function clearInput() {
+      productValue = '';
+      weightValue = '';
+      updateDisplay();
+      JsBarcode("#barcode", "", { displayValue: false });
+      showNotification('Kode produk dan berat telah direset');
+    }
+    
+    // Display and formatting functions
+    function formatBarcodeData() {
+      const formattedFlex = flexValue.padStart(2, '0');
+      const formattedCategory = categoryValue.padStart(3, '0');
+      const formattedProduct = productValue.padStart(3, '0');
+      const formattedWeight = weightValue.padStart(5, '0');
+      return `${formattedFlex}${formattedCategory}${formattedProduct}${formattedWeight}`;
+    }
+    
+    function updateDisplay() {
+      document.getElementById('current-flex').textContent = flexValue.padStart(2, '0');
+      document.getElementById('current-category').textContent = categoryValue.padStart(3, '0');
+      document.getElementById('current-product').textContent = productValue.padStart(3, '0');
+      document.getElementById('current-weight').textContent = weightValue.padStart(5, '0');
+      document.getElementById('current-barcode').textContent = formatBarcodeData();
+    }
+    
+    function generate() {
+      const barcodeData = formatBarcodeData();
+      if (barcodeData.length !== 13) {
+        showNotification('Pastikan semua field terisi dengan digit yang benar');
+        return;
+      }
+      
+      JsBarcode("#barcode", barcodeData, {
+        format: "CODE128",
+        displayValue: true,
+        fontSize: 16,
+        height: 50,
+        margin: 10
+      });
+      
+      showNotification('Barcode berhasil digenerate');
+    }
+    
+    // Printer communication functions - Web Serial API
+    async function connectToPrinter() {
+      try {
+        if (!("serial" in navigator)) {
+          showNotification("Browser tidak mendukung Web Serial API. Gunakan Chrome/Edge.");
+          return false;
+        }
+
+        showNotification("Memilih printer...");
+        
+        // Request serial port
+        port = await navigator.serial.requestPort();
+        showNotification("Membuka koneksi...");
+        
+        // Open the port with baud rate 9600 (standard for many thermal printers)
+        await port.open({ baudRate: 9600 });
+        
+        // Get the writer
+        writer = port.writable.getWriter();
+        
+        updateConnectionStatus(true);
+        showNotification('Printer berhasil terhubung!');
+        return true;
+        
+      } catch (error) {
+        console.error("Connection error:", error);
+        if (error.name === 'NotFoundError') {
+          showNotification("Tidak ada printer yang dipilih");
+        } else {
+          showNotification("Gagal terhubung ke printer: " + error.message);
+        }
+        updateConnectionStatus(false);
+        return false;
+      }
+    }
+    
+    async function printBarcode() {
+      try {
+        if (!productValue || !weightValue) {
+          showNotification('Harap isi PRODUK dan BERAT terlebih dahulu');
+          return;
+        }
+        
+        // Generate barcode if not already generated
+        const barcodeData = formatBarcodeData();
+        if (barcodeData.length !== 13) {
+          showNotification('Pastikan semua field terisi dengan digit yang benar');
+          return;
+        }
+        
+        // Auto-generate barcode if not already done
+        if (!document.querySelector('#barcode text') || 
+            document.querySelector('#barcode text').textContent !== barcodeData) {
+          generate();
+        }
+
+        if (!writer) {
+          showNotification('Printer belum terhubung. Klik tombol CONNECT dulu.');
+          return;
+        }
+
+        showNotification("Mengirim data ke printer...");
+        
+        // ESC/POS commands
+        const esc = '\x1B';
+        const gs = '\x1D';
+        const lf = '\x0A';
+        
+        // Initialize printer
+        let data = esc + '@';
+        
+        // Center alignment
+        data += esc + 'a' + '\x01';
+        
+        // Print title
+        data += 'BARCODE LABEL\n\n';
+        
+        // Print details
+        data += 'FLEX: ' + flexValue.padStart(2, '0') + lf;
+        data += 'KATEGORI: ' + categoryValue.padStart(3, '0') + lf;
+        data += 'PRODUK: ' + productValue.padStart(3, '0') + lf;
+        data += 'BERAT: ' + weightValue.padStart(5, '0') + lf + lf;
+        
+        // Print barcode using ESC/POS native barcode commands
+        // Select barcode height
+        data += gs + 'h' + '\x50'; // Height = 80
+        // Select barcode width
+        data += gs + 'w' + '\x02'; // Width = 2
+        // Select CODE128 barcode
+        data += gs + 'k' + '\x49'; // CODE128
+        // Length of data
+        data += String.fromCharCode(barcodeData.length);
+        // Barcode data
+        data += barcodeData;
+        
+        data += lf + lf;
+        
+        // Add cut command (partial cut)
+        data += gs + 'V' + '\x41' + '\x00';
+        
+        // Encode and send data
+        const encoder = new TextEncoder();
+        const encodedData = encoder.encode(data);
+        
+        await writer.write(encodedData);
+        
+        showNotification('Data berhasil dikirim ke printer');
+      } catch (error) {
+        console.error("Print error:", error);
+        showNotification("Gagal mengirim ke printer: " + error.message);
+      }
+    }
+    
+    // UI feedback functions
+    function updateConnectionStatus(connected) {
+      const status = document.getElementById('status');
+      if (connected) {
+        status.textContent = 'Printer: Terkoneksi';
+        status.className = 'status-connected';
+      } else {
+        status.textContent = 'Printer: Tidak Terkoneksi';
+        status.className = 'status-disconnected';
+      }
+    }
+    
+    function showNotification(message, duration = 3000) {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.style.display = 'block';
+      setTimeout(() => {
+        notification.style.display = 'none';
+      }, duration);
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      updateDisplay();
+      
+      // Check Web Serial API support
+      if (!("serial" in navigator)) {
+        document.getElementById('status').textContent = 'Browser tidak mendukung Web Serial API';
+      }
+    });
+  </script>
+</body>
+</html>
