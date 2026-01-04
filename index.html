@@ -92,6 +92,9 @@
       min-height: 50px;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.1s;
     }
 
     button:active {
@@ -173,9 +176,29 @@
       font-size: 14px;
       min-height: 40px;
     }
+    
+    /* Audio status indicator */
+    .audio-status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #4CAF50;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 1000;
+    }
+    .audio-status.show {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
+  <div class="audio-status" id="audio-status">Audio: Memuat...</div>
+  
   <div class="calculator">
     <div id="display">
       <div class="display-row">
@@ -207,39 +230,39 @@
     </div>
     
     <div class="small-function-row">
-      <button id="flex-btn" class="function-btn small-btn active-mode" onclick="setInputMode('flex')">FLEX</button>
-      <button id="category-btn" class="function-btn small-btn" onclick="setInputMode('category')">KATEGORI</button>
+      <button id="flex-btn" class="function-btn small-btn active-mode" onclick="setInputMode('flex'); playSound('mode')">FLEX</button>
+      <button id="category-btn" class="function-btn small-btn" onclick="setInputMode('category'); playSound('mode')">KATEGORI</button>
     </div>
     
     <div class="function-row">
-      <button id="product-btn" class="function-btn" onclick="setInputMode('product')">PRODUK</button>
-      <button id="weight-btn" class="function-btn" onclick="setInputMode('weight')">BERAT</button>
-      <button class="backspace-btn" onclick="backspace()">⌫</button>
+      <button id="product-btn" class="function-btn" onclick="setInputMode('product'); playSound('mode')">PRODUK</button>
+      <button id="weight-btn" class="function-btn" onclick="setInputMode('weight'); playSound('mode')">BERAT</button>
+      <button class="backspace-btn" onclick="backspace(); playSound('delete')">⌫</button>
     </div>
     
     <div class="function-row">
-      <button class="function-btn" onclick="clearInput()">CLEAR</button>
-      <button class="function-btn" onclick="generate()">ENTER</button>
-      <button class="function-btn" onclick="connectToPrinter()">CONNECT</button>
+      <button class="function-btn" onclick="clearInput(); playSound('delete')">CLEAR</button>
+      <button class="function-btn" onclick="generate(); playSound('function')">ENTER</button>
+      <button class="function-btn" onclick="connectToPrinter(); playSound('connect')">CONNECT</button>
     </div>
     
     <div class="buttons">
-      <button onclick="appendNumber('7')">7</button>
-      <button onclick="appendNumber('8')">8</button>
-      <button onclick="appendNumber('9')">9</button>
+      <button onclick="appendNumber('7'); playSound('number')">7</button>
+      <button onclick="appendNumber('8'); playSound('number')">8</button>
+      <button onclick="appendNumber('9'); playSound('number')">9</button>
       
-      <button onclick="appendNumber('4')">4</button>
-      <button onclick="appendNumber('5')">5</button>
-      <button onclick="appendNumber('6')">6</button>
+      <button onclick="appendNumber('4'); playSound('number')">4</button>
+      <button onclick="appendNumber('5'); playSound('number')">5</button>
+      <button onclick="appendNumber('6'); playSound('number')">6</button>
       
-      <button onclick="appendNumber('1')">1</button>
-      <button onclick="appendNumber('2')">2</button>
-      <button onclick="appendNumber('3')">3</button>
+      <button onclick="appendNumber('1'); playSound('number')">1</button>
+      <button onclick="appendNumber('2'); playSound('number')">2</button>
+      <button onclick="appendNumber('3'); playSound('number')">3</button>
       
-      <button onclick="appendNumber('0')">0</button>
-      <button onclick="appendNumber('00')">00</button>
+      <button onclick="appendNumber('0'); playSound('number')">0</button>
+      <button onclick="appendNumber('00'); playSound('number')">00</button>
       
-      <button class="print-btn function-btn" onclick="printBarcode()">PRINT</button>
+      <button class="print-btn function-btn" onclick="printBarcode(); playSound('print')">PRINT</button>
     </div>
     
     <svg id="barcode"></svg>
@@ -248,6 +271,147 @@
   <div id="notification"></div>
 
   <script>
+    // Audio system
+    let audioContext = null;
+    let isAudioInitialized = false;
+    const audioStatus = document.getElementById('audio-status');
+    
+    // Initialize audio
+    function initAudio() {
+      try {
+        if (window.AudioContext || window.webkitAudioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          
+          // Create a simple test tone to verify audio works
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          gainNode.gain.value = 0.001; // Very quiet test
+          oscillator.frequency.value = 440;
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.01);
+          
+          isAudioInitialized = true;
+          audioStatus.textContent = "Audio: Siap";
+          setTimeout(() => {
+            audioStatus.classList.remove('show');
+          }, 2000);
+          
+          console.log("Audio initialized successfully");
+        } else {
+          audioStatus.textContent = "Audio: Tidak didukung";
+          setTimeout(() => {
+            audioStatus.classList.remove('show');
+          }, 2000);
+        }
+      } catch (error) {
+        console.log("Audio initialization error:", error);
+        audioStatus.textContent = "Audio: Error";
+        setTimeout(() => {
+          audioStatus.classList.remove('show');
+        }, 2000);
+      }
+    }
+    
+    // Show audio status
+    audioStatus.classList.add('show');
+    
+    // Play sound function
+    function playSound(type = 'number', frequency = 600, duration = 0.1, volume = 0.2) {
+      if (!isAudioInitialized) {
+        initAudio();
+        if (!isAudioInitialized) return;
+      }
+      
+      try {
+        // Resume audio context if suspended
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Set parameters based on sound type
+        switch(type) {
+          case 'number':
+            frequency = 600 + Math.random() * 100;
+            volume = 0.15;
+            break;
+          case 'delete':
+            frequency = 350;
+            volume = 0.2;
+            duration = 0.08;
+            break;
+          case 'mode':
+            frequency = 700;
+            volume = 0.18;
+            break;
+          case 'function':
+            frequency = 900;
+            volume = 0.18;
+            duration = 0.12;
+            break;
+          case 'print':
+            frequency = 1100;
+            duration = 0.15;
+            volume = 0.22;
+            break;
+          case 'connect':
+            frequency = 800;
+            duration = 0.18;
+            volume = 0.2;
+            break;
+          case 'success':
+            frequency = 1000;
+            duration = 0.25;
+            volume = 0.25;
+            break;
+          case 'error':
+            frequency = 300;
+            duration = 0.15;
+            volume = 0.25;
+            break;
+          case 'notification':
+            frequency = 1200;
+            duration = 0.15;
+            volume = 0.2;
+            break;
+        }
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = frequency;
+        
+        // Set envelope for smooth sound
+        const now = audioContext.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+        
+        // Cleanup
+        oscillator.onended = () => {
+          oscillator.disconnect();
+          gainNode.disconnect();
+        };
+      } catch (error) {
+        console.log("Sound error:", error);
+      }
+    }
+    
+    // Play click sound
+    function playClickSound() {
+      playSound('number');
+    }
+
     // Global variables
     let currentInputMode = 'flex';
     let flexValue = '';
@@ -256,6 +420,14 @@
     let weightValue = '';
     let port = null;
     let writer = null;
+    
+    // Initialize audio on first user interaction
+    document.addEventListener('click', function initAudioOnInteraction() {
+      if (!isAudioInitialized) {
+        initAudio();
+      }
+      document.removeEventListener('click', initAudioOnInteraction);
+    }, { once: true });
     
     // Input handling functions
     function setInputMode(mode) {
@@ -345,6 +517,7 @@
     function generate() {
       const barcodeData = formatBarcodeData();
       if (barcodeData.length !== 13) {
+        playSound('error');
         showNotification('Pastikan semua field terisi dengan digit yang benar');
         return;
       }
@@ -357,6 +530,7 @@
         margin: 10
       });
       
+      playSound('success');
       showNotification('Barcode berhasil digenerate');
     }
     
@@ -364,6 +538,7 @@
     async function connectToPrinter() {
       try {
         if (!("serial" in navigator)) {
+          playSound('error');
           showNotification("Browser tidak mendukung Web Serial API. Gunakan Chrome/Edge.");
           return false;
         }
@@ -381,14 +556,17 @@
         writer = port.writable.getWriter();
         
         updateConnectionStatus(true);
+        playSound('success');
         showNotification('Printer berhasil terhubung!');
         return true;
         
       } catch (error) {
         console.error("Connection error:", error);
         if (error.name === 'NotFoundError') {
+          playSound('error');
           showNotification("Tidak ada printer yang dipilih");
         } else {
+          playSound('error');
           showNotification("Gagal terhubung ke printer: " + error.message);
         }
         updateConnectionStatus(false);
@@ -399,6 +577,7 @@
     async function printBarcode() {
       try {
         if (!productValue || !weightValue) {
+          playSound('error');
           showNotification('Harap isi PRODUK dan BERAT terlebih dahulu');
           return;
         }
@@ -406,6 +585,7 @@
         // Generate barcode if not already generated
         const barcodeData = formatBarcodeData();
         if (barcodeData.length !== 13) {
+          playSound('error');
           showNotification('Pastikan semua field terisi dengan digit yang benar');
           return;
         }
@@ -417,6 +597,7 @@
         }
 
         if (!writer) {
+          playSound('error');
           showNotification('Printer belum terhubung. Klik tombol CONNECT dulu.');
           return;
         }
@@ -466,9 +647,11 @@
         
         await writer.write(encodedData);
         
+        playSound('success');
         showNotification('Data berhasil dikirim ke printer');
       } catch (error) {
         console.error("Print error:", error);
+        playSound('error');
         showNotification("Gagal mengirim ke printer: " + error.message);
       }
     }
@@ -489,10 +672,74 @@
       const notification = document.getElementById('notification');
       notification.textContent = message;
       notification.style.display = 'block';
+      
+      // Play notification sound
+      playSound('notification');
+      
       setTimeout(() => {
         notification.style.display = 'none';
       }, duration);
     }
+    
+    // Keyboard support
+    document.addEventListener('keydown', function(event) {
+      const key = event.key;
+      
+      // Play sound for any key press
+      if (key >= '0' && key <= '9') {
+        playSound('number');
+      } else if (key === 'Backspace') {
+        playSound('delete');
+      } else if (key === 'Enter') {
+        playSound('function');
+      } else if (key === 'c' || key === 'C') {
+        if (event.ctrlKey) return;
+        playSound('connect');
+      } else if (key === 'p' || key === 'P') {
+        playSound('print');
+      }
+      
+      // Numbers
+      if (key >= '0' && key <= '9') {
+        appendNumber(key);
+      }
+      
+      // Special keys
+      switch(key) {
+        case 'Backspace':
+          backspace();
+          break;
+        case 'Delete':
+          clearInput();
+          break;
+        case 'Enter':
+          generate();
+          break;
+        case 'c':
+        case 'C':
+          if (event.ctrlKey) break;
+          connectToPrinter();
+          break;
+        case 'p':
+        case 'P':
+          printBarcode();
+          break;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+          // Mode switching with number keys
+          if (event.ctrlKey) {
+            event.preventDefault();
+            const modes = ['flex', 'category', 'product', 'weight'];
+            const modeIndex = parseInt(key) - 1;
+            if (modeIndex < modes.length) {
+              setInputMode(modes[modeIndex]);
+            }
+          }
+          break;
+      }
+    });
     
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
