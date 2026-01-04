@@ -689,6 +689,9 @@
         
         // Initialize printer
         let data = esc + '@';
+
+        // Baris kosong
+        data += lf;
         
         // Set alignment to center
         data += esc + 'a' + '\x01'; // Center alignment
