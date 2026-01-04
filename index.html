@@ -506,6 +506,13 @@
       return `${formattedFlex}${formattedCategory}${formattedProduct}${formattedWeight}`;
     }
     
+    // Function to format values without leading zeros for display
+    function formatDisplayValue(value, defaultValue = '0') {
+      if (!value || value === '') return defaultValue;
+      // Remove leading zeros
+      return value.replace(/^0+/, '') || '0';
+    }
+    
     function updateDisplay() {
       document.getElementById('current-flex').textContent = flexValue.padStart(2, '0');
       document.getElementById('current-category').textContent = categoryValue.padStart(3, '0');
@@ -612,17 +619,21 @@
         // Initialize printer
         let data = esc + '@';
         
-        // Center alignment
-        data += esc + 'a' + '\x01';
+        // Set alignment to center for all content
+        data += esc + 'a' + '\x01'; // Center alignment
         
-        // Print title
-        data += 'BARCODE LABEL\n\n';
+        // Baris 1: [Flex value][kategori value][produk value][berat value]
+        // Format: [FF][KKK][PPP][WWWWW]
+        data += '[' + flexValue.padStart(2, '0') + '][' + 
+                       categoryValue.padStart(3, '0') + '][' + 
+                       productValue.padStart(3, '0') + '][' + 
+                       weightValue.padStart(5, '0') + ']' + lf;
         
-        // Print details
-        data += 'FLEX: ' + flexValue.padStart(2, '0') + lf;
-        data += 'KATEGORI: ' + categoryValue.padStart(3, '0') + lf;
-        data += 'PRODUK: ' + productValue.padStart(3, '0') + lf;
-        data += 'BERAT: ' + weightValue.padStart(5, '0') + lf + lf;
+        // Baris kosong
+        data += lf;
+        
+        // Set alignment to center for barcode
+        data += esc + 'a' + '\x01'; // Center alignment again for barcode
         
         // Print barcode using ESC/POS native barcode commands
         // Select barcode height
@@ -636,9 +647,13 @@
         // Barcode data
         data += barcodeData;
         
+        // Tambahkan feed untuk memastikan barcode tercetak
+        data += lf;
+        
+        // Dua baris kosong setelah barcode
         data += lf + lf;
         
-        // Add cut command (partial cut)
+        // Add cut command (full cut)
         data += gs + 'V' + '\x41' + '\x00';
         
         // Encode and send data
@@ -653,6 +668,73 @@
         console.error("Print error:", error);
         playSound('error');
         showNotification("Gagal mengirim ke printer: " + error.message);
+        
+        // Coba format alternatif jika gagal
+        if (error.message.includes("invalid") || error.message.includes("character")) {
+          showNotification("Mencoba format alternatif...");
+          await tryAlternativePrint();
+        }
+      }
+    }
+    
+    // Alternatif format cetak
+    async function tryAlternativePrint() {
+      try {
+        const barcodeData = formatBarcodeData();
+        
+        // ESC/POS commands
+        const esc = '\x1B';
+        const gs = '\x1D';
+        const lf = '\x0A';
+        
+        // Initialize printer
+        let data = esc + '@';
+        
+        // Set alignment to center
+        data += esc + 'a' + '\x01'; // Center alignment
+        
+        // Baris 1: [Flex value][kategori value][produk value][berat value]
+        data += '[' + flexValue.padStart(2, '0') + '][' + 
+                       categoryValue.padStart(3, '0') + '][' + 
+                       productValue.padStart(3, '0') + '][' + 
+                       weightValue.padStart(5, '0') + ']' + lf;
+        
+        // Baris kosong
+        data += lf;
+        
+        // Set alignment to center untuk barcode
+        data += esc + 'a' + '\x01'; // Center alignment
+        
+        // Alternatif perintah barcode
+        // Set barcode height
+        data += gs + 'h' + '\x50'; // Height = 80
+        // Set barcode width
+        data += gs + 'w' + '\x02'; // Width = 2
+        // CODE128 barcode
+        data += gs + 'k' + '\x49'; // GS k 73 (CODE128)
+        data += barcodeData.length; // Length
+        data += barcodeData; // Data
+        
+        // Feed lines
+        data += lf;
+        
+        // Dua baris kosong
+        data += lf + lf;
+        
+        // Cut paper
+        data += gs + 'V' + '\x41' + '\x00'; // Full cut
+        
+        const encoder = new TextEncoder();
+        const encodedData = encoder.encode(data);
+        
+        await writer.write(encodedData);
+        
+        playSound('success');
+        showNotification('Berhasil dicetak dengan format alternatif!');
+      } catch (error2) {
+        console.error("Alternative print error:", error2);
+        playSound('error');
+        showNotification("Gagal mencetak dengan format alternatif");
       }
     }
     
