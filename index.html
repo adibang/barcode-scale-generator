@@ -10,6 +10,10 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     body {
@@ -19,6 +23,7 @@
       align-items: center;
       justify-content: center;
       padding: 10px;
+      touch-action: manipulation;
     }
 
     .calculator {
@@ -38,6 +43,7 @@
       text-align: center;
       font-family: monospace;
       font-size: 1em;
+      user-select: text;
     }
 
     .display-row {
@@ -94,19 +100,25 @@
       -webkit-tap-highlight-color: transparent;
       position: relative;
       overflow: hidden;
-      transition: transform 0.1s;
+      transition: all 0.1s ease;
+      outline: none;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+      transform: translateZ(0);
+      will-change: transform, background-color;
     }
 
-    button:active {
+    button:active, button.active {
       background: #2980b9;
-      transform: scale(0.98);
+      transform: scale(0.95) translateZ(0);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: transform 0.05s ease;
     }
 
     .function-btn {
       background: #e67e22;
     }
 
-    .function-btn:active {
+    .function-btn:active, .function-btn.active {
       background: #d35400;
     }
 
@@ -155,7 +167,7 @@
       background: #e74c3c !important;
     }
 
-    .print-btn:active {
+    .print-btn:active, .print-btn.active {
       background: #c0392b !important;
     }
 
@@ -163,7 +175,7 @@
       background: #c0392b;
     }
 
-    .backspace-btn:active {
+    .backspace-btn:active, .backspace-btn.active {
       background: #a93226;
     }
 
@@ -193,6 +205,23 @@
     }
     .audio-status.show {
       opacity: 1;
+    }
+    
+    /* Ripple effect for buttons */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.6);
+      transform: scale(0);
+      animation: ripple-animation 0.6s linear;
+      pointer-events: none;
+    }
+    
+    @keyframes ripple-animation {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
     }
   </style>
 </head>
@@ -230,39 +259,39 @@
     </div>
     
     <div class="small-function-row">
-      <button id="flex-btn" class="function-btn small-btn active-mode" onclick="setInputMode('flex'); playSound('mode')">FLEX</button>
-      <button id="category-btn" class="function-btn small-btn" onclick="setInputMode('category'); playSound('mode')">KATEGORI</button>
+      <button id="flex-btn" class="function-btn small-btn active-mode">FLEX</button>
+      <button id="category-btn" class="function-btn small-btn">KATEGORI</button>
     </div>
     
     <div class="function-row">
-      <button id="product-btn" class="function-btn" onclick="setInputMode('product'); playSound('mode')">PRODUK</button>
-      <button id="weight-btn" class="function-btn" onclick="setInputMode('weight'); playSound('mode')">BERAT</button>
-      <button class="backspace-btn" onclick="backspace(); playSound('delete')">⌫</button>
+      <button id="product-btn" class="function-btn">PRODUK</button>
+      <button id="weight-btn" class="function-btn">BERAT</button>
+      <button class="backspace-btn">⌫</button>
     </div>
     
     <div class="function-row">
-      <button class="function-btn" onclick="clearInput(); playSound('delete')">CLEAR</button>
-      <button class="function-btn" onclick="generate(); playSound('function')">ENTER</button>
-      <button class="function-btn" onclick="connectToPrinter(); playSound('connect')">CONNECT</button>
+      <button class="function-btn">CLEAR</button>
+      <button class="function-btn">ENTER</button>
+      <button class="function-btn">CONNECT</button>
     </div>
     
     <div class="buttons">
-      <button onclick="appendNumber('7'); playSound('number')">7</button>
-      <button onclick="appendNumber('8'); playSound('number')">8</button>
-      <button onclick="appendNumber('9'); playSound('number')">9</button>
+      <button>7</button>
+      <button>8</button>
+      <button>9</button>
       
-      <button onclick="appendNumber('4'); playSound('number')">4</button>
-      <button onclick="appendNumber('5'); playSound('number')">5</button>
-      <button onclick="appendNumber('6'); playSound('number')">6</button>
+      <button>4</button>
+      <button>5</button>
+      <button>6</button>
       
-      <button onclick="appendNumber('1'); playSound('number')">1</button>
-      <button onclick="appendNumber('2'); playSound('number')">2</button>
-      <button onclick="appendNumber('3'); playSound('number')">3</button>
+      <button>1</button>
+      <button>2</button>
+      <button>3</button>
       
-      <button onclick="appendNumber('0'); playSound('number')">0</button>
-      <button onclick="appendNumber('00'); playSound('number')">00</button>
+      <button>0</button>
+      <button>00</button>
       
-      <button class="print-btn function-btn" onclick="printBarcode(); playSound('print')">PRINT</button>
+      <button class="print-btn function-btn">PRINT</button>
     </div>
     
     <svg id="barcode"></svg>
@@ -429,6 +458,35 @@
       document.removeEventListener('click', initAudioOnInteraction);
     }, { once: true });
     
+    // Button ripple effect
+    function createRipple(event) {
+      const button = event.currentTarget;
+      const circle = document.createElement("span");
+      const diameter = Math.max(button.clientWidth, button.clientHeight);
+      const radius = diameter / 2;
+      
+      circle.style.width = circle.style.height = `${diameter}px`;
+      circle.style.left = `${event.clientX - button.getBoundingClientRect().left - radius}px`;
+      circle.style.top = `${event.clientY - button.getBoundingClientRect().top - radius}px`;
+      circle.classList.add("ripple");
+      
+      const ripple = button.getElementsByClassName("ripple")[0];
+      
+      if (ripple) {
+        ripple.remove();
+      }
+      
+      button.appendChild(circle);
+    }
+    
+    // Button press animation
+    function animateButtonPress(button) {
+      button.classList.add('active');
+      setTimeout(() => {
+        button.classList.remove('active');
+      }, 150);
+    }
+    
     // Input handling functions
     function setInputMode(mode) {
       currentInputMode = mode;
@@ -504,13 +562,6 @@
       const formattedProduct = productValue.padStart(3, '0');
       const formattedWeight = weightValue.padStart(5, '0');
       return `${formattedFlex}${formattedCategory}${formattedProduct}${formattedWeight}`;
-    }
-    
-    // Function to format values without leading zeros for display
-    function formatDisplayValue(value, defaultValue = '0') {
-      if (!value || value === '') return defaultValue;
-      // Remove leading zeros
-      return value.replace(/^0+/, '') || '0';
     }
     
     function updateDisplay() {
@@ -766,69 +817,205 @@
       }, duration);
     }
     
-    // Keyboard support
-    document.addEventListener('keydown', function(event) {
-      const key = event.key;
+    // Set up event listeners for buttons
+    function setupButtonListeners() {
+      // FLEX button
+      document.getElementById('flex-btn').addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
+        playSound('mode');
+        setInputMode('flex');
+      });
       
-      // Play sound for any key press
-      if (key >= '0' && key <= '9') {
-        playSound('number');
-      } else if (key === 'Backspace') {
+      // KATEGORI button
+      document.getElementById('category-btn').addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
+        playSound('mode');
+        setInputMode('category');
+      });
+      
+      // PRODUK button
+      document.getElementById('product-btn').addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
+        playSound('mode');
+        setInputMode('product');
+      });
+      
+      // BERAT button
+      document.getElementById('weight-btn').addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
+        playSound('mode');
+        setInputMode('weight');
+      });
+      
+      // Backspace button
+      document.querySelector('.backspace-btn').addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
         playSound('delete');
-      } else if (key === 'Enter') {
+        backspace();
+      });
+      
+      // CLEAR button
+      document.querySelectorAll('.function-row')[1].children[0].addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
+        playSound('delete');
+        clearInput();
+      });
+      
+      // ENTER button
+      document.querySelectorAll('.function-row')[1].children[1].addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
         playSound('function');
-      } else if (key === 'c' || key === 'C') {
-        if (event.ctrlKey) return;
+        generate();
+      });
+      
+      // CONNECT button
+      document.querySelectorAll('.function-row')[1].children[2].addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
         playSound('connect');
-      } else if (key === 'p' || key === 'P') {
+        connectToPrinter();
+      });
+      
+      // Number buttons (0-9, 00)
+      const numberButtons = document.querySelectorAll('.buttons button:not(.print-btn)');
+      numberButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+          createRipple(e);
+          animateButtonPress(this);
+          playSound('number');
+          const value = this.textContent;
+          appendNumber(value);
+        });
+      });
+      
+      // PRINT button
+      document.querySelector('.print-btn').addEventListener('click', function(e) {
+        createRipple(e);
+        animateButtonPress(this);
         playSound('print');
-      }
+        printBarcode();
+      });
       
-      // Numbers
-      if (key >= '0' && key <= '9') {
-        appendNumber(key);
-      }
-      
-      // Special keys
-      switch(key) {
-        case 'Backspace':
-          backspace();
-          break;
-        case 'Delete':
-          clearInput();
-          break;
-        case 'Enter':
-          generate();
-          break;
-        case 'c':
-        case 'C':
-          if (event.ctrlKey) break;
-          connectToPrinter();
-          break;
-        case 'p':
-        case 'P':
-          printBarcode();
-          break;
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-          // Mode switching with number keys
-          if (event.ctrlKey) {
-            event.preventDefault();
-            const modes = ['flex', 'category', 'product', 'weight'];
-            const modeIndex = parseInt(key) - 1;
-            if (modeIndex < modes.length) {
-              setInputMode(modes[modeIndex]);
+      // Touch events for mobile
+      const allButtons = document.querySelectorAll('button');
+      allButtons.forEach(button => {
+        button.addEventListener('touchstart', function(e) {
+          // Prevent default to avoid double-tap zoom
+          e.preventDefault();
+          createRipple(e);
+          animateButtonPress(this);
+          
+          // Play sound based on button type
+          if (this.classList.contains('backspace-btn')) {
+            playSound('delete');
+          } else if (this.classList.contains('print-btn')) {
+            playSound('print');
+          } else if (this.classList.contains('function-btn') && 
+                     !this.classList.contains('active-mode') && 
+                     !this.id) {
+            // For function buttons that are not mode switchers
+            if (this.textContent === 'CLEAR') {
+              playSound('delete');
+            } else if (this.textContent === 'ENTER') {
+              playSound('function');
+            } else if (this.textContent === 'CONNECT') {
+              playSound('connect');
+            } else {
+              playSound('function');
             }
+          } else if (this.id === 'flex-btn' || this.id === 'category-btn' || 
+                     this.id === 'product-btn' || this.id === 'weight-btn') {
+            playSound('mode');
+          } else if (this.textContent.match(/^[0-9]{1,2}$/)) {
+            playSound('number');
           }
-          break;
-      }
-    });
+        }, { passive: false });
+        
+        button.addEventListener('touchend', function(e) {
+          // Trigger the click event
+          this.click();
+        });
+      });
+    }
+    
+    // Keyboard support
+    function setupKeyboardListeners() {
+      document.addEventListener('keydown', function(event) {
+        const key = event.key;
+        
+        // Play sound for any key press
+        if (key >= '0' && key <= '9') {
+          playSound('number');
+        } else if (key === 'Backspace') {
+          playSound('delete');
+        } else if (key === 'Enter') {
+          playSound('function');
+        } else if (key === 'c' || key === 'C') {
+          if (event.ctrlKey) return;
+          playSound('connect');
+        } else if (key === 'p' || key === 'P') {
+          playSound('print');
+        }
+        
+        // Numbers
+        if (key >= '0' && key <= '9') {
+          appendNumber(key);
+        }
+        
+        // Special keys
+        switch(key) {
+          case 'Backspace':
+            backspace();
+            break;
+          case 'Delete':
+            clearInput();
+            break;
+          case 'Enter':
+            generate();
+            break;
+          case 'c':
+          case 'C':
+            if (event.ctrlKey) break;
+            connectToPrinter();
+            break;
+          case 'p':
+          case 'P':
+            printBarcode();
+            break;
+          case '1':
+          case '2':
+          case '3':
+          case '4':
+            // Mode switching with number keys
+            if (event.ctrlKey) {
+              event.preventDefault();
+              const modes = ['flex', 'category', 'product', 'weight'];
+              const modeIndex = parseInt(key) - 1;
+              if (modeIndex < modes.length) {
+                setInputMode(modes[modeIndex]);
+              }
+            }
+            break;
+        }
+      });
+    }
     
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
       updateDisplay();
+      
+      // Setup button event listeners
+      setupButtonListeners();
+      
+      // Setup keyboard listeners
+      setupKeyboardListeners();
       
       // Check Web Serial API support
       if (!("serial" in navigator)) {
