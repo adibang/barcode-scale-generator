@@ -244,12 +244,12 @@
     </div>
     
     <div class="small-function-row">
-      <button id="flex-btn" class="function-btn small-btn active-mode">FLEX</button>
+      <button id="flex-btn" class="function-btn small-btn">FLEX</button>
       <button id="category-btn" class="function-btn small-btn">KATEGORI</button>
     </div>
     
     <div class="function-row">
-      <button id="product-btn" class="function-btn">PRODUK</button>
+      <button id="product-btn" class="function-btn active-mode">PRODUK</button>
       <button id="weight-btn" class="function-btn">BERAT</button>
       <button class="backspace-btn">⌫</button>
     </div>
@@ -365,7 +365,7 @@
     }
 
     // Global variables
-    let currentInputMode = 'flex';
+    let currentInputMode = 'product'; // Mulai dengan mode PRODUK
     let flexValue = '';
     let categoryValue = '';
     let productValue = '';
@@ -450,6 +450,7 @@
     }
     
     function clearInput() {
+      // Hanya reset PRODUK dan BERAT, FLEX dan KATEGORI tetap
       productValue = '';
       weightValue = '';
       updateDisplay();
@@ -490,6 +491,16 @@
       });
       
       showNotification('Barcode berhasil digenerate');
+      
+      // RESET: Hanya reset PRODUK dan BERAT, FLEX dan KATEGORI TETAP
+      productValue = '';
+      weightValue = '';
+      
+      // RESET: Kembalikan mode input ke PRODUK
+      setInputMode('product');
+      
+      // Update display untuk menampilkan nilai yang sudah direset
+      updateDisplay();
     }
     
     // Printer communication functions - Web Serial API
