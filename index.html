@@ -208,23 +208,6 @@
     .audio-status.show {
       opacity: 1;
     }
-    
-    /* Ripple effect for buttons */
-    .ripple {
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.6);
-      transform: scale(0);
-      animation: ripple-animation 0.6s linear;
-      pointer-events: none;
-    }
-    
-    @keyframes ripple-animation {
-      to {
-        transform: scale(4);
-        opacity: 0;
-      }
-    }
   </style>
 </head>
 <body>
@@ -312,25 +295,11 @@
       try {
         if (window.AudioContext || window.webkitAudioContext) {
           audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          
-          // Create a simple test tone to verify audio works
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          gainNode.gain.value = 0.001; // Very quiet test
-          oscillator.frequency.value = 440;
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.01);
-          
           isAudioInitialized = true;
           audioStatus.textContent = "Audio: Siap";
           setTimeout(() => {
             audioStatus.classList.remove('show');
           }, 2000);
-          
           console.log("Audio initialized successfully");
         } else {
           audioStatus.textContent = "Audio: Tidak didukung";
@@ -350,8 +319,8 @@
     // Show audio status
     audioStatus.classList.add('show');
     
-    // Play sound function
-    function playSound(type = 'number', frequency = 600, duration = 0.1, volume = 0.2) {
+    // Play simple TIT sound
+    function playTitSound() {
       if (!isAudioInitialized) {
         initAudio();
         if (!isAudioInitialized) return;
@@ -369,58 +338,15 @@
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
-        // Set parameters based on sound type
-        switch(type) {
-          case 'number':
-            frequency = 600 + Math.random() * 100;
-            volume = 0.15;
-            break;
-          case 'delete':
-            frequency = 350;
-            volume = 0.2;
-            duration = 0.08;
-            break;
-          case 'mode':
-            frequency = 700;
-            volume = 0.18;
-            break;
-          case 'function':
-            frequency = 900;
-            volume = 0.18;
-            duration = 0.12;
-            break;
-          case 'print':
-            frequency = 1100;
-            duration = 0.15;
-            volume = 0.22;
-            break;
-          case 'connect':
-            frequency = 800;
-            duration = 0.18;
-            volume = 0.2;
-            break;
-          case 'success':
-            frequency = 1000;
-            duration = 0.25;
-            volume = 0.25;
-            break;
-          case 'error':
-            frequency = 300;
-            duration = 0.15;
-            volume = 0.25;
-            break;
-          case 'notification':
-            frequency = 1200;
-            duration = 0.15;
-            volume = 0.2;
-            break;
-        }
-        
+        // Simple TIT sound
         oscillator.type = 'sine';
-        oscillator.frequency.value = frequency;
+        oscillator.frequency.value = 800; // Fixed frequency for TIT sound
         
-        // Set envelope for smooth sound
+        // Set envelope for short TIT sound
         const now = audioContext.currentTime;
+        const duration = 0.08; // Very short duration for TIT
+        const volume = 0.25; // Good volume level
+        
         gainNode.gain.setValueAtTime(0, now);
         gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
         gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
@@ -436,11 +362,6 @@
       } catch (error) {
         console.log("Sound error:", error);
       }
-    }
-    
-    // Play click sound
-    function playClickSound() {
-      playSound('number');
     }
 
     // Global variables
@@ -459,27 +380,6 @@
       }
       document.removeEventListener('click', initAudioOnInteraction);
     }, { once: true });
-    
-    // Button ripple effect
-    function createRipple(event) {
-      const button = event.currentTarget;
-      const circle = document.createElement("span");
-      const diameter = Math.max(button.clientWidth, button.clientHeight);
-      const radius = diameter / 2;
-      
-      circle.style.width = circle.style.height = `${diameter}px`;
-      circle.style.left = `${event.clientX - button.getBoundingClientRect().left - radius}px`;
-      circle.style.top = `${event.clientY - button.getBoundingClientRect().top - radius}px`;
-      circle.classList.add("ripple");
-      
-      const ripple = button.getElementsByClassName("ripple")[0];
-      
-      if (ripple) {
-        ripple.remove();
-      }
-      
-      button.appendChild(circle);
-    }
     
     // Button press animation
     function animateButtonPress(button) {
@@ -577,7 +477,6 @@
     function generate() {
       const barcodeData = formatBarcodeData();
       if (barcodeData.length !== 13) {
-        playSound('error');
         showNotification('Pastikan semua field terisi dengan digit yang benar');
         return;
       }
@@ -590,7 +489,6 @@
         margin: 10
       });
       
-      playSound('success');
       showNotification('Barcode berhasil digenerate');
     }
     
@@ -598,7 +496,6 @@
     async function connectToPrinter() {
       try {
         if (!("serial" in navigator)) {
-          playSound('error');
           showNotification("Browser tidak mendukung Web Serial API. Gunakan Chrome/Edge.");
           return false;
         }
@@ -616,17 +513,14 @@
         writer = port.writable.getWriter();
         
         updateConnectionStatus(true);
-        playSound('success');
         showNotification('Printer berhasil terhubung!');
         return true;
         
       } catch (error) {
         console.error("Connection error:", error);
         if (error.name === 'NotFoundError') {
-          playSound('error');
           showNotification("Tidak ada printer yang dipilih");
         } else {
-          playSound('error');
           showNotification("Gagal terhubung ke printer: " + error.message);
         }
         updateConnectionStatus(false);
@@ -637,7 +531,6 @@
     async function printBarcode() {
       try {
         if (!productValue || !weightValue) {
-          playSound('error');
           showNotification('Harap isi PRODUK dan BERAT terlebih dahulu');
           return;
         }
@@ -645,7 +538,6 @@
         // Generate barcode if not already generated
         const barcodeData = formatBarcodeData();
         if (barcodeData.length !== 13) {
-          playSound('error');
           showNotification('Pastikan semua field terisi dengan digit yang benar');
           return;
         }
@@ -657,7 +549,6 @@
         }
 
         if (!writer) {
-          playSound('error');
           showNotification('Printer belum terhubung. Klik tombol CONNECT dulu.');
           return;
         }
@@ -715,11 +606,9 @@
         
         await writer.write(encodedData);
         
-        playSound('success');
         showNotification('Data berhasil dikirim ke printer');
       } catch (error) {
         console.error("Print error:", error);
-        playSound('error');
         showNotification("Gagal mengirim ke printer: " + error.message);
         
         // Coba format alternatif jika gagal
@@ -755,9 +644,6 @@
                        productValue.padStart(3, '0') + '][' + 
                        weightValue.padStart(5, '0') + ']' + lf;
         
-        // Baris kosong
-        //data += lf;
-        
         // Set alignment to center untuk barcode
         data += esc + 'a' + '\x01'; // Center alignment
         
@@ -785,11 +671,9 @@
         
         await writer.write(encodedData);
         
-        playSound('success');
         showNotification('Berhasil dicetak dengan format alternatif!');
       } catch (error2) {
         console.error("Alternative print error:", error2);
-        playSound('error');
         showNotification("Gagal mencetak dengan format alternatif");
       }
     }
@@ -811,9 +695,6 @@
       notification.textContent = message;
       notification.style.display = 'block';
       
-      // Play notification sound
-      playSound('notification');
-      
       setTimeout(() => {
         notification.style.display = 'none';
       }, duration);
@@ -822,86 +703,76 @@
     // Set up event listeners for buttons
     function setupButtonListeners() {
       // FLEX button
-      document.getElementById('flex-btn').addEventListener('click', function(e) {
-        createRipple(e);
+      document.getElementById('flex-btn').addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('mode');
+        playTitSound();
         setInputMode('flex');
       });
       
       // KATEGORI button
-      document.getElementById('category-btn').addEventListener('click', function(e) {
-        createRipple(e);
+      document.getElementById('category-btn').addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('mode');
+        playTitSound();
         setInputMode('category');
       });
       
       // PRODUK button
-      document.getElementById('product-btn').addEventListener('click', function(e) {
-        createRipple(e);
+      document.getElementById('product-btn').addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('mode');
+        playTitSound();
         setInputMode('product');
       });
       
       // BERAT button
-      document.getElementById('weight-btn').addEventListener('click', function(e) {
-        createRipple(e);
+      document.getElementById('weight-btn').addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('mode');
+        playTitSound();
         setInputMode('weight');
       });
       
       // Backspace button
-      document.querySelector('.backspace-btn').addEventListener('click', function(e) {
-        createRipple(e);
+      document.querySelector('.backspace-btn').addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('delete');
+        playTitSound();
         backspace();
       });
       
       // CLEAR button
-      document.querySelectorAll('.function-row')[1].children[0].addEventListener('click', function(e) {
-        createRipple(e);
+      document.querySelectorAll('.function-row')[1].children[0].addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('delete');
+        playTitSound();
         clearInput();
       });
       
       // ENTER button
-      document.querySelectorAll('.function-row')[1].children[1].addEventListener('click', function(e) {
-        createRipple(e);
+      document.querySelectorAll('.function-row')[1].children[1].addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('function');
+        playTitSound();
         generate();
       });
       
       // CONNECT button
-      document.querySelectorAll('.function-row')[1].children[2].addEventListener('click', function(e) {
-        createRipple(e);
+      document.querySelectorAll('.function-row')[1].children[2].addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('connect');
+        playTitSound();
         connectToPrinter();
       });
       
       // Number buttons (0-9, 00)
       const numberButtons = document.querySelectorAll('.buttons button:not(.print-btn)');
       numberButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-          createRipple(e);
+        button.addEventListener('click', function() {
           animateButtonPress(this);
-          playSound('number');
+          playTitSound();
           const value = this.textContent;
           appendNumber(value);
         });
       });
       
       // PRINT button
-      document.querySelector('.print-btn').addEventListener('click', function(e) {
-        createRipple(e);
+      document.querySelector('.print-btn').addEventListener('click', function() {
         animateButtonPress(this);
-        playSound('print');
+        playTitSound();
         printBarcode();
       });
       
@@ -911,33 +782,8 @@
         button.addEventListener('touchstart', function(e) {
           // Prevent default to avoid double-tap zoom
           e.preventDefault();
-          createRipple(e);
           animateButtonPress(this);
-          
-          // Play sound based on button type
-          if (this.classList.contains('backspace-btn')) {
-            playSound('delete');
-          } else if (this.classList.contains('print-btn')) {
-            playSound('print');
-          } else if (this.classList.contains('function-btn') && 
-                     !this.classList.contains('active-mode') && 
-                     !this.id) {
-            // For function buttons that are not mode switchers
-            if (this.textContent === 'CLEAR') {
-              playSound('delete');
-            } else if (this.textContent === 'ENTER') {
-              playSound('function');
-            } else if (this.textContent === 'CONNECT') {
-              playSound('connect');
-            } else {
-              playSound('function');
-            }
-          } else if (this.id === 'flex-btn' || this.id === 'category-btn' || 
-                     this.id === 'product-btn' || this.id === 'weight-btn') {
-            playSound('mode');
-          } else if (this.textContent.match(/^[0-9]{1,2}$/)) {
-            playSound('number');
-          }
+          playTitSound();
         }, { passive: false });
         
         button.addEventListener('touchend', function(e) {
@@ -953,18 +799,7 @@
         const key = event.key;
         
         // Play sound for any key press
-        if (key >= '0' && key <= '9') {
-          playSound('number');
-        } else if (key === 'Backspace') {
-          playSound('delete');
-        } else if (key === 'Enter') {
-          playSound('function');
-        } else if (key === 'c' || key === 'C') {
-          if (event.ctrlKey) return;
-          playSound('connect');
-        } else if (key === 'p' || key === 'P') {
-          playSound('print');
-        }
+        playTitSound();
         
         // Numbers
         if (key >= '0' && key <= '9') {
