@@ -450,12 +450,16 @@
     }
     
     function clearInput() {
-      // Hanya reset PRODUK dan BERAT, FLEX dan KATEGORI tetap
+      // Reset kolom produk dan berat
       productValue = '';
       weightValue = '';
+      
+      // Kembali ke mode PRODUK
+      setInputMode('product');
+      
       updateDisplay();
       JsBarcode("#barcode", "", { displayValue: false });
-      showNotification('Kode produk dan berat telah direset');
+      showNotification('Kolom produk dan berat telah direset, kembali ke mode PRODUK');
     }
     
     // Display and formatting functions
@@ -492,15 +496,8 @@
       
       showNotification('Barcode berhasil digenerate');
       
-      // RESET: Hanya reset PRODUK dan BERAT, FLEX dan KATEGORI TETAP
-      productValue = '';
-      weightValue = '';
-      
-      // RESET: Kembalikan mode input ke PRODUK
-      setInputMode('product');
-      
-      // Update display untuk menampilkan nilai yang sudah direset
-      updateDisplay();
+      // TIDAK ADA RESET OTOMATIS - biarkan user reset manual dengan CLEAR
+      // Data tetap ada untuk bisa di-print
     }
     
     // Printer communication functions - Web Serial API
@@ -546,7 +543,7 @@
           return;
         }
         
-        // Generate barcode if not already generated
+        // Generate barcode jika belum digenerate
         const barcodeData = formatBarcodeData();
         if (barcodeData.length !== 13) {
           showNotification('Pastikan semua field terisi dengan digit yang benar');
@@ -556,7 +553,7 @@
         // Auto-generate barcode if not already done
         if (!document.querySelector('#barcode text') || 
             document.querySelector('#barcode text').textContent !== barcodeData) {
-          generate();
+          generate(); // Generate barcode terlebih dahulu
         }
 
         if (!writer) {
